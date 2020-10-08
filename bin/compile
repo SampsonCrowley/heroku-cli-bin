@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 VERSION=7.45.0
-RELEASE=1
+RELEASE=2
 SRC_DIR=$(dirname "$0")
 SRC_DIR=$(cd $SRC_DIR; pwd)
 SRC_DIR=$(cd "$SRC_DIR/../"; pwd)
@@ -8,72 +8,97 @@ SRC_DIR=$(cd "$SRC_DIR/../"; pwd)
 set -e
 
 pushd "$SRC_DIR"
-  git switch "v$VERSION" 2> /dev/null || git switch -c "v$VERSION"
-  rm -rf heroku-cli-v*.tar.xz
+  git switch "v$VERSION" 2> /dev/null && git switch main && git branch -D "v$VERSION"
+  git switch -c "v$VERSION"
 
-  rm -rf src/ pkg/ cli-source/
-  rm -f ./heroku-cli-*.tar*
-  git clone https://github.com/heroku/cli.git cli-source
+  if [[ "$1" == "--use-existing" ]]; then
+    echo "USE EXISTING"
+    git log -1 --date=short --format="%ad-%H"|sed 's/-/./g' > .ignore
+    git add .ignore
+    git commit -am "Release v$VERSION ($RELEASE)"
+    echo "COMMITTED"
+  else
+    echo "BUILD PACKAGE"
+    rm -rf heroku-cli-v*.tar.xz
 
-  pushd cli-source
+    rm -rf src/ pkg/ cli-source/
+    rm -f ./heroku-cli-*.tar*
+    git clone https://github.com/heroku/cli.git cli-source
 
-    git fetch origin -t "v$VERSION"
-    git switch --detach "v$VERSION"
-    yarn
+    pushd cli-source
 
-    pushd packages/cli
+      git fetch origin -t "v$VERSION"
+      git switch --detach "v$VERSION"
+      yarn
 
-      sed -i "/oclif\/plugin-update/d" ./package.json
-      npm install
-      rm -rf ./dist
-      npx oclif-dev pack --targets="linux-x64"
+      pushd packages/cli
 
-      pushd dist/heroku-v$VERSION/
+        sed -i "/oclif\/plugin-update/d" ./package.json
+        npm install
+        rm -rf ./dist
+        npx oclif-dev pack --targets="linux-x64"
 
-        RELEASE_DIR="heroku-cli-v$VERSION-$RELEASE"
+        pushd dist/heroku-v$VERSION/
 
-        rm -rf "$RELEASE_DIR"
-        mkdir "$RELEASE_DIR"
+          RELEASE_DIR="heroku-cli-v$VERSION-$RELEASE"
 
-        tar -xvf "heroku-v$VERSION-linux-x64.tar.xz" -C "$RELEASE_DIR/"
+          rm -rf "$RELEASE_DIR"
+          mkdir "$RELEASE_DIR"
 
-        pushd "$RELEASE_DIR"
+          tar -xvf "heroku-v$VERSION-linux-x64.tar.xz" -C "$RELEASE_DIR/"
 
-          # remove packaged node binary and fall back to whatever node is on the PATH
-          rm -f ./heroku/bin/heroku
-          rm -f ./heroku/bin/heroku.cmd
-          rm -f ./heroku/bin/node
+          pushd "$RELEASE_DIR"
 
-          tar -cJvf "$SRC_DIR/heroku-cli-bin-v$VERSION-$RELEASE.tar.xz" heroku
+            # remove packaged node binary and fall back to whatever node is on the PATH
+            rm -f ./heroku/bin/heroku
+            rm -f ./heroku/bin/heroku.cmd
+            rm -f ./heroku/bin/node
+
+            tar -cJvf "$SRC_DIR/heroku-cli-bin-v$VERSION-$RELEASE.tar.xz" heroku
+
+          popd
 
         popd
 
       popd
 
     popd
+    git add -A
+    git commit -am "Release v$VERSION ($RELEASE)"
+  fi
 
-  popd
+  echo "TAGS"
+  git ls-remote --tags origin
+  echo "TAGS GREP"
+  git ls-remote --tags origin | echo
+  echo "WORKING"
+  has_tag=$(git ls-remote --tags origin | grep "v$VERSION-$RELEASE" || echo "no-tag")
+  echo "$has_tag"
 
-  git add -A
-  git commit -am "Release v$VERSION ($RELEASE)"
-
-  has_tag=$(git ls-remote --tags origin | grep "v$VERSION-$RELEASE")
-  if [[ $has_tag ]]; then
+  if [[ $has_tag != "no-tag" ]]; then
     git tag -d "v$VERSION-$RELEASE"
     git push origin :"v$VERSION-$RELEASE"
   fi
 
+  echo "creating tag: $VERSION-$RELEASE"
   git tag "v$VERSION-$RELEASE" -m "Heroku CLI v$VERSION ($RELEASE)"
+
+  echo "pushing tag: $VERSION-$RELEASE"
   git push origin "v$VERSION-$RELEASE"
 
-  if [ $# -eq 0 ]; then git push origin "v$VERSION":main; fi
+  echo "pushing main"
+  git push origin v$VERSION:main
 
   git switch main
 
-  if [ $# -eq 0 ]; then git pull origin main; fi
+  echo "deleting branch: v$VERSION"
+  git branch -D "v$VERSION"
 
-  if [[ -f ../PKGBUILD ]]; then
-    pushd ../
+  echo "pulling updates"
+  git pull origin main
+
+  if [[ -f ../heroku-cli-bin/PKGBUILD ]]; then
+    pushd ../heroku-cli-bin
 
       sed -i "s/^pkgver=.*/pkgver=$VERSION/" ./PKGBUILD
       sed -i "s/^pkgrel=.*/pkgrel=$RELEASE/" ./PKGBUILD

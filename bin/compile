@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+VERSION=7.45.0
+RELEASE=1
+SRC_DIR=$(dirname "$0")
+SRC_DIR=$(cd $SRC_DIR; pwd)
+SRC_DIR=$(cd "$SRC_DIR/../"; pwd)
+
+set -e
+
+pushd "$SRC_DIR"
+  git switch "v$VERSION"
+  rm -rf heroku-cli-v*.tar.xz
+
+  rm -rf src/ pkg/ cli-source/
+  rm -f ./heroku-cli-*.tar*
+  git clone https://github.com/heroku/cli.git cli-source
+
+  pushd cli-source
+
+    git fetch origin -t "v$VERSION"
+    git switch --detach "v$VERSION"
+    yarn
+
+    pushd packages/cli
+
+      sed -i "/oclif\/plugin-update/d" ./package.json
+      npm install
+      rm -rf ./dist
+      npx oclif-dev pack --targets="linux-x64"
+
+      pushd dist/heroku-v$VERSION/
+
+        RELEASE_DIR="heroku-cli-v$VERSION-$RELEASE"
+
+        rm -rf "$RELEASE_DIR"
+        mkdir "$RELEASE_DIR"
+
+        tar -xvf "heroku-v$VERSION-linux-x64.tar.xz" -C "$RELEASE_DIR/"
+
+        pushd "$RELEASE_DIR"
+
+          # remove packaged node binary and fall back to whatever node is on the PATH
+          rm -f ./heroku/bin/heroku
+          rm -f ./heroku/bin/heroku.cmd
+          rm -f ./heroku/bin/node
+
+          tar -cJvf "$SRC_DIR/heroku-cli-v$VERSION-$RELEASE.tar.xz" heroku
+
+        popd
+
+      popd
+
+    popd
+
+  popd
+
+  git add -A
+  git commit -am "Release v$VERSION ($RELEASE)"
+  git tag "v$VERSION-$RELEASE" -m "Heroku CLI v$VERSION ($RELEASE)"
+  git push origin "v$VERSION"
+  git push origin +"v$VERSION-$RELEASE"
+  if [ $# -eq 0 ]; then git push origin main; fi
+
+  if [[ -f ../PKGBUILD ]]; then
+    pushd ../
+
+      sed -i "s/^pkgver=.*/pkgver=$VERSION/" ./PKGBUILD
+      sed -i "s/^pkgrel=.*/pkgrel=$RELEASE/" ./PKGBUILD
+
+      updpkgsums
+
+      makepkg
+
+    popd
+  fi
+
+
+popd

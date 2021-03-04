@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION=7.49.1
+VERSION=7.50.0
 RELEASE=1
 SRC_DIR=$(dirname "$0")
 SRC_DIR=$(cd $SRC_DIR; pwd)

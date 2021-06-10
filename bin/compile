@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-VERSION=7.54.0
-RELEASE=2
+VERSION=7.54.1
+RELEASE=1
+COMMIT_ID="2bdd9d738ba74b80510cafa7953c1b1a2e127bff"
 SRC_DIR=$(dirname "$0")
 SRC_DIR=$(cd $SRC_DIR; pwd)
 SRC_DIR=$(cd "$SRC_DIR/../"; pwd)
@@ -25,8 +26,8 @@ pushd "$SRC_DIR"
 
     pushd cli-source
 
-      git fetch origin -t "v$VERSION"
-      git switch --detach "v$VERSION"
+      git fetch origin "$COMMIT_ID"
+      git switch --detach "$COMMIT_ID"
       yarn
 
       pushd packages/cli
@@ -79,6 +80,8 @@ pushd "$SRC_DIR"
   echo "pushing tag: $VERSION-$RELEASE"
   git push origin "v$VERSION-$RELEASE"
 
+  PKG_COMMIT_ID="$(git rev-list -n 1 tags/v$VERSION-$RELEASE)"
+
   if [[ "$@" =~ "--update-main" ]]; then
     echo "pushing main"
     git push origin v$VERSION:main
@@ -100,6 +103,7 @@ pushd "$SRC_DIR"
 
       sed -i "s/^pkgver=.*/pkgver=$VERSION/" ./PKGBUILD
       sed -i "s/^pkgrel=.*/pkgrel=$RELEASE/" ./PKGBUILD
+      sed -i "s/^pkgrel=.*/_commit_id=$PKG_COMMIT_ID/" ./PKGBUILD
 
       updpkgsums
 

@@ -103,7 +103,7 @@ pushd "$SRC_DIR"
 
       sed -i "s/^pkgver=.*/pkgver=$VERSION/" ./PKGBUILD
       sed -i "s/^pkgrel=.*/pkgrel=$RELEASE/" ./PKGBUILD
-      sed -i "s/^pkgrel=.*/_commit_id=\"$PKG_COMMIT_ID\"/" ./PKGBUILD
+      sed -i "s/^_commit_id=.*/_commit_id=\"$PKG_COMMIT_ID\"/" ./PKGBUILD
 
       updpkgsums
 

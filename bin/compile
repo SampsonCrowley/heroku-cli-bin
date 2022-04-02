@@ -36,7 +36,7 @@ pushd "$SRC_DIR"
         echo "REMOVE UPDATE"
         sed -i "/oclif\/plugin-update/d" ./package.json
 
-        echo "NPM INSTALL"
+        echo "CLI YARN INSTALL"
         yarn
 
         echo "REMOVE DIST"

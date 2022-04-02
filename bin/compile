@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-VERSION=7.59.2
+VERSION=7.60.1
 RELEASE=1
-COMMIT_ID="77bd72011382a9896b8829a1fb206b931dd0babf"
+COMMIT_ID="4e998800e9bde9b30d97e465f1e2c066c5734ff5"
 SRC_DIR=$(dirname "$0")
 SRC_DIR=$(cd $SRC_DIR; pwd)
 SRC_DIR=$(cd "$SRC_DIR/../"; pwd)
@@ -28,16 +28,25 @@ pushd "$SRC_DIR"
 
       git fetch origin "$COMMIT_ID"
       git switch --detach "$COMMIT_ID"
+      echo "YARN INSTALL"
       yarn
 
       pushd packages/cli
 
+        echo "REMOVE UPDATE"
         sed -i "/oclif\/plugin-update/d" ./package.json
-        npm install
+
+        echo "NPM INSTALL"
+        yarn
+
+        echo "REMOVE DIST"
         rm -rf ./dist
+
+        echo "RUN OCLIFF"
         npx oclif-dev pack --targets="linux-x64"
 
         pushd dist/heroku-v$VERSION/
+          echo "PACK RELEASE"
 
           RELEASE_DIR="heroku-cli-v$VERSION-$RELEASE"
 

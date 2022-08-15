@@ -38,6 +38,8 @@ pushd "$SRC_DIR"
 
         echo "CLI YARN INSTALL"
         yarn
+        yarn_status=$?
+        (( $yarn_status > 0 )) && exit $yarn_status
 
         echo "REMOVE DIST"
         rm -rf ./dist
